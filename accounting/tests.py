@@ -85,6 +85,111 @@ class TestBillingSchedules(unittest.TestCase):
         self.assertEquals(len(self.policy.invoices), 4)
         self.assertEquals(self.policy.invoices[0].amount_due, 300)
 
+class TestUpdateBillingSchedule(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.test_agent = Contact('Test Agent', 'Agent')
+        cls.test_insured = Contact('Test Insured', 'Named Insured')
+        db.session.add(cls.test_agent)
+        db.session.add(cls.test_insured)
+        db.session.commit()
+
+        cls.policy = Policy('Test Policy', date(2015, 1, 1), 1200)
+        db.session.add(cls.policy)
+        cls.policy.named_insured = cls.test_insured.id
+        cls.policy.agent = cls.test_agent.id
+        db.session.commit()
+
+    @classmethod
+    def tearDownClass(cls):
+        db.session.delete(cls.test_insured)
+        db.session.delete(cls.test_agent)
+        db.session.delete(cls.policy)
+        db.session.commit()
+
+    def setUp(self):
+        pass
+
+    def tearDown(self):
+        for invoice in self.policy.invoices:
+            db.session.delete(invoice)
+        db.session.commit()
+
+    def test_update_billing_schedule_quartely_to_annual(self):
+        self.policy.billing_schedule = "Quarterly"
+        #No invoices currently exist
+        self.assertFalse(self.policy.invoices)
+        #Invoices should be made when the class is initiated
+        pa = PolicyAccounting(self.policy.id)
+        #There are 4 invoices in total before updating
+        self.assertEqual(len(self.policy.invoices), 4)
+
+        #Call update billing schedule with Annual option
+        pa.change_billing_schedule("Annual")
+
+        #There are 5 invoices in total after updating
+        self.assertEqual(len(self.policy.invoices), 5)
+        #4 are marked as deleted new invoice is not
+        self.assertEqual(self.policy.invoices[0].deleted, True)
+        self.assertEqual(self.policy.invoices[1].deleted, True)
+        self.assertEqual(self.policy.invoices[2].deleted, True)
+        self.assertEqual(self.policy.invoices[3].deleted, True)
+        self.assertEqual(self.policy.invoices[4].deleted, False)
+
+    def test_update_billing_schedule_annual_to_twopay(self):
+        self.policy.billing_schedule = "Annual"
+        #No invoices currently exist
+        self.assertFalse(self.policy.invoices)
+        #Invoices should be made when the class is initiated
+        pa = PolicyAccounting(self.policy.id)
+        #There is 1 invoice in total before updating
+        self.assertEqual(len(self.policy.invoices), 1)
+
+        #Call update billing schedule with Annual option
+        pa.change_billing_schedule("Two-Pay")
+
+        #There are 3 invoices in total after updating
+        self.assertEqual(len(self.policy.invoices), 3)
+        #1 is marked as deleted new invoices are not
+        self.assertEqual(self.policy.invoices[0].deleted, True)
+        self.assertEqual(self.policy.invoices[1].deleted, False)
+        self.assertEqual(self.policy.invoices[2].deleted, False)
+
+    def test_update_billing_schedule_to_incorrect_name(self):
+        self.policy.billing_schedule = "Annual"
+        #No invoices currently exist
+        self.assertFalse(self.policy.invoices)
+        #Invoices should be made when the class is initiated
+        pa = PolicyAccounting(self.policy.id)
+        #There is 1 invoice in total before updating
+        self.assertEqual(len(self.policy.invoices), 1)
+
+        #Call change billing schedule with Random option
+        pa.change_billing_schedule("Random")
+
+        #There is 1 invoice in total after updating
+        self.assertEqual(len(self.policy.invoices), 1)
+        #None have been marked as deleted
+        self.assertEqual(self.policy.invoices[0].deleted, False)
+
+    def test_update_billing_schedule_to_same_schedule(self):
+        self.policy.billing_schedule = "Annual"
+        #No invoices currently exist
+        self.assertFalse(self.policy.invoices)
+        #Invoices should be made when the class is initiated
+        pa = PolicyAccounting(self.policy.id)
+        #There is 1 invoice in total before updating
+        self.assertEqual(len(self.policy.invoices), 1)
+
+        #Call change billing schedule with Random option
+        pa.change_billing_schedule("Annual")
+
+        #There is 1 invoice in total after updating
+        self.assertEqual(len(self.policy.invoices), 1)
+        #None have been marked as deleted
+        self.assertEqual(self.policy.invoices[0].deleted, False)
+
 
 class TestMakePayment(unittest.TestCase):
     @classmethod
