@@ -14,6 +14,84 @@ Test Suite for Accounting
 #######################################################
 """
 
+class TestCancelPolicy(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.test_agent = Contact('Test Agent', 'Agent')
+        cls.test_insured = Contact('Test Insured', 'Named Insured')
+        db.session.add(cls.test_agent)
+        db.session.add(cls.test_insured)
+        db.session.commit()
+
+        cls.policy = Policy('Test Policy', date(2015, 1, 1), 1200)
+        db.session.add(cls.policy)
+        cls.policy.billing_schedule = "Annual"
+        cls.policy.named_insured = cls.test_insured.id
+        cls.policy.agent = cls.test_agent.id
+        db.session.commit()
+
+    @classmethod
+    def tearDownClass(cls):
+        db.session.delete(cls.test_insured)
+        db.session.delete(cls.test_agent)
+        db.session.delete(cls.policy)
+        db.session.commit()
+
+    def setUp(self):
+        pass
+
+    def tearDown(self):
+        for invoice in self.policy.invoices:
+            db.session.delete(invoice)
+
+        self.policy.status = 'Active'
+        self.policy.status_code = None
+        self.policy.status_desc = None
+        self.policy.cancel_date = None
+
+        db.session.commit()
+
+    def test_cancel_policy(self):
+        pa = PolicyAccounting(self.policy.id)
+        pa.cancel_policy('Canceled', 'Fraud', 'description', date(2015, 1, 1))
+
+        self.assertEquals(self.policy.invoices[0].deleted, True)
+        self.assertEquals(self.policy.status, 'Canceled')
+        self.assertEquals(self.policy.status_code, 'Fraud')
+        self.assertEquals(self.policy.status_desc, 'description')
+        self.assertEquals(self.policy.cancel_date, date(2015, 1, 1))
+
+    def test_expire_policy(self):
+        pa = PolicyAccounting(self.policy.id)
+        pa.cancel_policy('Expired', 'Non-Payment')
+
+        self.assertEquals(self.policy.invoices[0].deleted, True)
+        self.assertEquals(self.policy.status, 'Expired')
+        self.assertEquals(self.policy.status_code, 'Non-Payment')
+        self.assertEquals(self.policy.status_desc, None)
+        self.assertEquals(self.policy.cancel_date, datetime.now().date())
+
+    def test_cancel_policy_invalid_status(self):
+        pa = PolicyAccounting(self.policy.id)
+        pa.cancel_policy('Random Status', 'Fraud', 'description', date(2015, 1, 1))
+
+        self.assertEquals(self.policy.invoices[0].deleted, False)
+        self.assertEquals(self.policy.status, 'Active')
+        self.assertEquals(self.policy.status_code, None)
+        self.assertEquals(self.policy.status_desc, None)
+        self.assertEquals(self.policy.cancel_date, None)
+
+    def test_cancel_policy_invalid_reason(self):
+        pa = PolicyAccounting(self.policy.id)
+        pa.cancel_policy('Canceled', 'Random Status Code', 'description', date(2015, 1, 1))
+
+        self.assertEquals(self.policy.invoices[0].deleted, False)
+        self.assertEquals(self.policy.status, 'Active')
+        self.assertEquals(self.policy.status_code, None)
+        self.assertEquals(self.policy.status_desc, None)
+        self.assertEquals(self.policy.cancel_date, None)
+
+
 class TestBillingSchedules(unittest.TestCase):
 
     @classmethod

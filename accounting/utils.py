@@ -111,29 +111,63 @@ class PolicyAccounting(object):
         if not date_cursor:
             date_cursor = datetime.now().date()
 
-        # Retrieve all invoices by policy id before or equal to date
+        # Retrieve all invoices where cancel date has passed
         invoices = Invoice.query.filter_by(policy_id=self.policy.id)\
                                 .filter(Invoice.deleted == False)\
                                 .filter(Invoice.cancel_date <= date_cursor)\
                                 .order_by(Invoice.bill_date)\
                                 .all()
 
-        # Prints whether or not a policy should cancel. Based on if there is a balance left on any invoice
+        # Returns whether or not a policy should cancel. Based on if there is a balance left on any invoice
         for invoice in invoices:
             if not self.return_account_balance(invoice.cancel_date):
                 continue
             else:
-                print "THIS POLICY SHOULD HAVE CANCELED"
-                break
+                return True
+
         else:
-            print "THIS POLICY SHOULD NOT CANCEL"
+            print False
+
+    def cancel_policy(self, status=None, status_code=None, description=None, date_cursor=None):
+        valid_status = {u'Canceled', u'Expired'}
+        valid_reasons = {'Fraud': 0, 'Non-Payment': 1, 'Underwriting': 2}
+
+        # If invalid status code return
+        if status not in valid_status:
+            print('Invalid status update chosen')
+            return
+
+        # If invalid reason return
+        if status_code not in valid_reasons:
+            print('Invalid reason chosen')
+            return
+
+        # Set as current date if empty
+        if not date_cursor:
+            date_cursor = datetime.now().date()
+
+        # If policy passed grace period for unpaid invoices print message
+        if not self.evaluate_cancel:
+            print ('This policy has one or more invoices unpaid, and should be cancelled')
+
+        # Add status and description to policy
+        self.policy.status = status
+        self.policy.status_code = status_code
+        self.policy.cancel_date = date_cursor
+
+        if description:
+            self.policy.status_desc = description
+
+        # Mark invoices associated with policy as deleted
+        self.delete_invoices()
+
+        db.session.commit()
+
+    def delete_invoices(self):
+        for invoice in self.policy.invoices:
+            invoice.deleted = True
 
     def make_invoices(self):
-        # Delete invoices if any related to policy
-        for invoice in self.policy.invoices:
-            if(invoice.deleted == False):
-                invoice.delete()
-
         billing_schedules = {'Annual': None, 'Two-Pay': 2, 'Quarterly': 4, 'Monthly': 12}
 
         # Creates initial invoice for effective date
