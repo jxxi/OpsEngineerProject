@@ -86,6 +86,44 @@ class TestBillingSchedules(unittest.TestCase):
         self.assertEquals(self.policy.invoices[0].amount_due, 300)
 
 
+class TestMakePayment(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.test_agent = Contact('Test Agent', 'Agent')
+        cls.test_insured = Contact('Test Insured', 'Named Insured')
+        db.session.add(cls.test_agent)
+        db.session.add(cls.test_insured)
+        db.session.commit()
+
+        cls.policy = Policy('Test Policy', date(2015, 1, 1), 1200)
+        cls.policy.named_insured = cls.test_insured.id
+        cls.policy.agent = cls.test_agent.id
+        db.session.add(cls.policy)
+        db.session.commit()
+
+    @classmethod
+    def tearDownClass(cls):
+        db.session.delete(cls.test_insured)
+        db.session.delete(cls.test_agent)
+        db.session.delete(cls.policy)
+        db.session.commit()
+
+    def setUp(self):
+        self.payments = []
+
+    def tearDown(self):
+        for invoice in self.policy.invoices:
+            db.session.delete(invoice)
+        for payment in self.payments:
+            db.session.delete(payment)
+        db.session.commit()
+
+    def test_make_payment(self):
+        pa = PolicyAccounting(self.policy.id)
+        payment = pa.make_payment(self.policy.agent, datetime.now().date(), 1200)
+        self.assertEqual(1200, payment.amount_paid)
+        
+
 class TestReturnAccountBalance(unittest.TestCase):
 
     @classmethod
