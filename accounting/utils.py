@@ -60,6 +60,15 @@ class PolicyAccounting(object):
                 logging.exception('Problem retrieving insured name for make_payment')
                 return None
 
+        # If cancellation due to non pay, an agent must make the payment
+        if self.evaluate_cancellation_pending_due_to_non_pay(date_cursor):
+            contact = Contact.query.filter_by(id=contact_id)\
+                                   .one()
+            if contact.role != 'Agent':
+                print 'Due to the current status of this policy, an agent is needed to make payment'
+                return
+
+        # Create payment
         payment = Payment(self.policy.id,
                           contact_id,
                           amount,
@@ -76,7 +85,26 @@ class PolicyAccounting(object):
          being paid in full. However, it has not necessarily
          made it to the cancel_date yet.
         """
-        pass
+
+        # Get all invoices by policy id
+        invoices = Invoice.query.filter_by(policy_id=self.policy.id)\
+                                .order_by(Invoice.bill_date)\
+                                .all()
+
+        # Find payments for each invoice
+        for invoice in invoices:
+            # Retrieve payments made on time
+            payments = Payment.query.filter_by(policy_id=invoice.policy_id)\
+                                    .filter(Payment.transaction_date >= invoice.bill_date and Payment.transaction_date <= invoice.due_date)\
+                                    .all()
+
+            # If no payments made. And date is past due date, but before cancel date. Return true
+            if not payments:
+                if date_cursor > invoice.due_date and date_cursor < invoice.cancel_date:
+                    return True
+
+        return False
+
 
     def evaluate_cancel(self, date_cursor=None):
         if not date_cursor:
