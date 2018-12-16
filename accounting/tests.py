@@ -65,6 +65,26 @@ class TestBillingSchedules(unittest.TestCase):
         self.assertEquals(len(self.policy.invoices), 12)
         self.assertEquals(self.policy.invoices[0].amount_due, 100)
 
+    def test_twopay_billing_schedule(self):
+        self.policy.billing_schedule = "Two-Pay"
+        #No invoices currently exist
+        self.assertFalse(self.policy.invoices)
+        #Create invoices for policy id
+        pa = PolicyAccounting(self.policy.id)
+
+        self.assertEquals(len(self.policy.invoices), 2)
+        self.assertEquals(self.policy.invoices[0].amount_due, 600)
+
+    def test_quarterly_billing_schedule(self):
+        self.policy.billing_schedule = "Quarterly"
+        #No invoices currently exist
+        self.assertFalse(self.policy.invoices)
+        #Create invoices for policy id
+        pa = PolicyAccounting(self.policy.id)
+
+        self.assertEquals(len(self.policy.invoices), 4)
+        self.assertEquals(self.policy.invoices[0].amount_due, 300)
+
 
 class TestReturnAccountBalance(unittest.TestCase):
 
