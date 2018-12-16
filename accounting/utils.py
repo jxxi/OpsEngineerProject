@@ -1,4 +1,5 @@
 #!/user/bin/env python2.7
+import logging
 
 from datetime import date, datetime
 from dateutil.relativedelta import relativedelta
@@ -26,17 +27,23 @@ class PolicyAccounting(object):
         if not date_cursor:
             date_cursor = datetime.now().date()
 
+        # Retrieve invoices by policy id with date up to date_cursor
         invoices = Invoice.query.filter_by(policy_id=self.policy.id)\
                                 .filter(Invoice.bill_date <= date_cursor)\
                                 .order_by(Invoice.bill_date)\
                                 .all()
+
+        # Calculate total amount due
         due_now = 0
         for invoice in invoices:
             due_now += invoice.amount_due
 
+        # Retrieve all previous payments
         payments = Payment.query.filter_by(policy_id=self.policy.id)\
                                 .filter(Payment.transaction_date <= date_cursor)\
                                 .all()
+
+        # Subtract payments from total due
         for payment in payments:
             due_now -= payment.amount_paid
 
@@ -50,7 +57,7 @@ class PolicyAccounting(object):
             try:
                 contact_id = self.policy.named_insured
             except:
-                pass
+                logging.exception('Problem retrieving contact id for make_payment')
 
         payment = Payment(self.policy.id,
                           contact_id,
@@ -74,11 +81,13 @@ class PolicyAccounting(object):
         if not date_cursor:
             date_cursor = datetime.now().date()
 
+        # Retrieve all invoices by policy id before or equal to date
         invoices = Invoice.query.filter_by(policy_id=self.policy.id)\
                                 .filter(Invoice.cancel_date <= date_cursor)\
                                 .order_by(Invoice.bill_date)\
                                 .all()
 
+        # Prints whether or not a policy should cancel. Based on if there is a balance left on any invoice
         for invoice in invoices:
             if not self.return_account_balance(invoice.cancel_date):
                 continue
@@ -90,11 +99,13 @@ class PolicyAccounting(object):
 
 
     def make_invoices(self):
+        # Delete invoices if any related to policy
         for invoice in self.policy.invoices:
             invoice.delete()
 
         billing_schedules = {'Annual': None, 'Semi-Annual': 3, 'Quarterly': 4, 'Monthly': 12}
 
+        # Creates initial invoice for effective date
         invoices = []
         first_invoice = Invoice(self.policy.id,
                                 self.policy.effective_date, #bill_date
@@ -103,6 +114,7 @@ class PolicyAccounting(object):
                                 self.policy.annual_premium)
         invoices.append(first_invoice)
 
+        # Based on billing cycle creates rest of invoices
         if self.policy.billing_schedule == "Annual":
             pass
         elif self.policy.billing_schedule == "Two-Pay":
