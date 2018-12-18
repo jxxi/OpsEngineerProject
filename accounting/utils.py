@@ -128,7 +128,7 @@ class PolicyAccounting(object):
         else:
             print False
 
-    def cancel_policy(self, status=None, status_code=None, description=None, date_cursor=None):
+    def cancel_policy(self, status=None, status_code=None, description=None):
         valid_status = {u'Canceled', u'Expired'}
         valid_reasons = {'Fraud': 0, 'Non-Payment': 1, 'Underwriting': 2}
 
@@ -142,9 +142,7 @@ class PolicyAccounting(object):
             print('Invalid reason chosen')
             return
 
-        # Set as current date if empty
-        if not date_cursor:
-            date_cursor = datetime.now().date()
+        date_cursor = datetime.now().date()
 
         # If policy passed grace period for unpaid invoices print message
         if not self.evaluate_cancel:

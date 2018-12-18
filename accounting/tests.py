@@ -53,13 +53,13 @@ class TestCancelPolicy(unittest.TestCase):
 
     def test_cancel_policy(self):
         pa = PolicyAccounting(self.policy.id)
-        pa.cancel_policy('Canceled', 'Fraud', 'description', date(2015, 1, 1))
+        pa.cancel_policy('Canceled', 'Fraud', 'description')
 
         self.assertEquals(self.policy.invoices[0].deleted, True)
         self.assertEquals(self.policy.status, 'Canceled')
         self.assertEquals(self.policy.status_code, 'Fraud')
         self.assertEquals(self.policy.status_desc, 'description')
-        self.assertEquals(self.policy.cancel_date, date(2015, 1, 1))
+        self.assertEquals(self.policy.cancel_date, datetime.now().date())
 
     def test_expire_policy(self):
         pa = PolicyAccounting(self.policy.id)
@@ -73,7 +73,7 @@ class TestCancelPolicy(unittest.TestCase):
 
     def test_cancel_policy_invalid_status(self):
         pa = PolicyAccounting(self.policy.id)
-        pa.cancel_policy('Random Status', 'Fraud', 'description', date(2015, 1, 1))
+        pa.cancel_policy('Random Status', 'Fraud', 'description')
 
         self.assertEquals(self.policy.invoices[0].deleted, False)
         self.assertEquals(self.policy.status, 'Active')
@@ -83,7 +83,7 @@ class TestCancelPolicy(unittest.TestCase):
 
     def test_cancel_policy_invalid_reason(self):
         pa = PolicyAccounting(self.policy.id)
-        pa.cancel_policy('Canceled', 'Random Status Code', 'description', date(2015, 1, 1))
+        pa.cancel_policy('Canceled', 'Random Status Code', 'description')
 
         self.assertEquals(self.policy.invoices[0].deleted, False)
         self.assertEquals(self.policy.status, 'Active')
