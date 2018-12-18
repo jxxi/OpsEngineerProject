@@ -26,7 +26,22 @@ class Policy(db.Model):
         self.effective_date = effective_date
         self.annual_premium = annual_premium
 
+    def serialize(self):
+             return {
+                 'id': self.id,
+                 'policy_number': self.policy_number,
+                 'effective_date': str(self.effective_date),
+                 'cancel_date': str(self.cancel_date),
+                 'status': self.status,
+                 'billing_schedule': self.billing_schedule,
+                 'annual_premium': self.annual_premium,
+                 'named_insured': self.named_insured,
+                 'agent': self.agent,
+                 'invoices': [i.serialize() for i in self.invoices]
+             }
+
     invoices = db.relation('Invoice', primaryjoin="Invoice.policy_id==Policy.id")
+
 
 
 class Contact(db.Model):
@@ -65,6 +80,16 @@ class Invoice(db.Model):
         self.cancel_date = cancel_date
         self.amount_due = amount_due
 
+    def serialize(self):
+        return {
+            'id': self.id,
+            'policy_id': self.policy_id,
+            'bill_date': str(self.bill_date),
+            'due_date': str(self.due_date),
+            'cancel_date': str(self.cancel_date),
+            'amount_due': self.amount_due
+        }
+
 
 class Payment(db.Model):
     __tablename__ = 'payments'
@@ -83,3 +108,11 @@ class Payment(db.Model):
         self.contact_id = contact_id
         self.amount_paid = amount_paid
         self.transaction_date = transaction_date
+
+    def serialize(self):
+        return {
+            'policy_id': self.policy_id,
+            'contact_id': self.contact_id,
+            'amount_paid': self.amount_paid,
+            'transaction_date': str(self.transaction_date)
+        }
