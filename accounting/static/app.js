@@ -19,7 +19,7 @@ function AppViewModel() {
     self.policy = ko.observable(new PolicyViewModel(""));
     self.policy_id = ko.observable().extend({ required: true });
     self.policy_date = ko.observable().extend({ required: true });
-    
+
     self.error_message = ko.observable("");
     self.error = ko.observable(false);
 
@@ -44,8 +44,8 @@ function AppViewModel() {
             },
             error: function (response) {
                 console.log(JSON.stringify(response))
-                self.onError(true);
-                self.error_message(response.responseText);
+                self.error(true);
+                self.error_message("There is no policy information corresponding to that id and date");
                 return;
             }
         });
